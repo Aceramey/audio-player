@@ -100,8 +100,6 @@ def playback_mode(mode):
         match mode:
             case "normal":
                 if previous_playback_mode == "shuffle" and len(songs) > 1:
-                    print(songs_original)
-                    print("AAAAAAAAAAAAAAAAAAAAAAAAAA")
                     songs = []
                     for i in songs_original:
                         songs.append(i)
@@ -110,12 +108,10 @@ def playback_mode(mode):
                         songs.append(songs[0])
                         songs.pop(0)
                     next_song_in_queue = songs[1]
-                print(songs)
                 loop.config(foreground="black")
                 shuffle.config(foreground="black")
                 normal.config(foreground="crimson")
             case "shuffle":
-                print(songs_original)
                 loop.config(foreground="black")
                 shuffle.config(foreground="crimson")
                 normal.config(foreground="black")
@@ -126,7 +122,6 @@ def playback_mode(mode):
                     next_song_in_queue = songs[1]
                 else:
                     next_song_in_queue = song
-                print(songs)
             case "loop":
                 loop.config(foreground="crimson")
                 shuffle.config(foreground="black")
@@ -176,7 +171,6 @@ def song_control(direction):
                     next_song_in_queue = songs[1]
 
     song_title.config(text=song.split("/")[-1])
-    print(songs)
 
 def update_progress():
     global played_songs
