@@ -1,4 +1,3 @@
-#!env/bin/python
 import tkinter as tk
 import vlc
 from tkinter import font, ttk
