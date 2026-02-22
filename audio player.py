@@ -1,19 +1,42 @@
+#!env/bin/python
 import tkinter as tk
 import vlc
-import sys
 from tkinter import font, ttk
 import math
+import os
+import random
 import time
 
-if len(sys.argv) < 2:
-    print("no file specified")
+
+if os.path.exists("Music") == False:
+    os.mkdir("Music")
+
+songs = []
+for i in os.listdir("Music"):
+    songs.append(f"Music/{i}")
+
+if len(songs) == 0:
+    print("No songs found :(")
     exit()
+
+#import sys
+#if len(sys.argv) < 2:
+    #print("no file specified")
+    #exit()
 
 print("Don't close me :(")
 
-song = sys.argv[1]
+song = songs[0]
+if len(songs) > 1:
+    next_song_in_queue = songs[1]
+songs_original = []
+for i in songs:
+    songs_original.append(i)
 player = vlc.MediaPlayer(song)
 player.play()
+current_playback_mode = "normal"
+previous_playback_mode = "normal"
+last_song = songs[len(songs)-1]
 
 def key_press(event):
     key = event.keysym
@@ -67,7 +90,100 @@ def reverse(amount):
     else:
         player.set_time(player.get_time()-amount)
 
+def playback_mode(mode):
+    global current_playback_mode
+    global next_song_in_queue
+    global previous_playback_mode
+    global songs
+    if current_playback_mode != mode:
+        previous_playback_mode = current_playback_mode
+        current_playback_mode = mode
+        match mode:
+            case "normal":
+                if previous_playback_mode == "shuffle" and len(songs) > 1:
+                    print(songs_original)
+                    print("AAAAAAAAAAAAAAAAAAAAAAAAAA")
+                    songs = []
+                    for i in songs_original:
+                        songs.append(i)
+                    song_index = songs.index(song)
+                    for i in range(song_index):
+                        songs.append(songs[0])
+                        songs.pop(0)
+                    next_song_in_queue = songs[1]
+                print(songs)
+                loop.config(foreground="black")
+                shuffle.config(foreground="black")
+                normal.config(foreground="crimson")
+            case "shuffle":
+                print(songs_original)
+                loop.config(foreground="black")
+                shuffle.config(foreground="crimson")
+                normal.config(foreground="black")
+                random.shuffle(songs)
+                songs.pop(songs.index(song))
+                songs = [song] + songs
+                if len(songs) > 1:
+                    next_song_in_queue = songs[1]
+                else:
+                    next_song_in_queue = song
+                print(songs)
+            case "loop":
+                loop.config(foreground="crimson")
+                shuffle.config(foreground="black")
+                normal.config(foreground="black")
+
+def song_control(direction):
+    global player
+    global next_song_in_queue
+    global songs
+    global song
+    global last_song
+    match direction:
+        case "next":
+            if current_playback_mode == "loop":
+                player.set_time(0)
+            else:
+                if len(songs) > 1:
+                    player.stop()
+                    media = vlc.Media(next_song_in_queue)
+                    player.set_media(media)
+                    player.play()
+                    song_index = songs.index(song)
+                    for i in range(song_index+1):
+                        songs.append(songs[0])
+                        songs.pop(0)
+                    last_song = song
+                    song = next_song_in_queue
+                    next_song_in_queue = songs[1]
+                else:
+                    player.set_time(0)
+
+        case "previous":
+            if current_playback_mode == "loop":
+                player.set_time(0)
+            else:
+                if len(songs) < 2:
+                    player.set_time(0)
+                else:
+                    player.stop()
+                    media = vlc.Media(last_song)
+                    player.set_media(media)
+                    player.play()
+                    song = last_song
+                    songs = [songs[len(songs)-1]] + songs
+                    songs.pop(len(songs)-1)
+                    last_song = songs[len(songs)-1]
+                    next_song_in_queue = songs[1]
+
+    song_title.config(text=song.split("/")[-1])
+    print(songs)
+
 def update_progress():
+    global played_songs
+    global songs
+    global player
+    global song
     if player.get_state() == vlc.State.Playing:
         progress["value"] = (player.get_time() / player.get_length()) * 100
         minutes = str(math.floor(player.get_time()/1000/60))
@@ -80,18 +196,26 @@ def update_progress():
             minutes = "0" + str(minutes)
         if int(seconds) < 10 and seconds != "00":
             seconds = "0" + str(seconds)
+        length = player.get_length()
+        max_minutes = str(math.floor(length/1000/60))
+        max_seconds = str(round(length/1000%60))
+        if int(max_minutes) < 10:
+	        max_minutes = "0" + str(max_minutes)
+        if int(max_seconds) < 10 and max_seconds != "00":
+	        max_seconds = "0" + str(max_seconds)
+        song_length = f"{max_minutes}:{max_seconds}"
         song_progress.config(text=f"{minutes}:{seconds} / {song_length}")
-        if progress["value"] >= progress["maximum"]:
-            root.destroy()
+        #if progress["value"] >= progress["maximum"]:
+            #song_control("next")
     elif player.get_state() == vlc.State.Ended:
-        root.destroy()
+        song_control("next")
     root.after(1000, update_progress)
 
 root = tk.Tk()
-root.title(song.split("/")[-1])
+root.title("Audio Player")
 root.resizable(False, False)
 
-big_text = tk.font.Font(size=20)
+big_text = tk.font.Font(size=12)
 
 playpause = tk.Button(root, text="Play/Pause", command=play_pause, font=big_text, activeforeground="crimson")
 
@@ -113,11 +237,20 @@ reverse_row = tk.Frame(root)
 gobackward10 = tk.Button(reverse_row, text="10 seconds", command=lambda: reverse(10000), font=big_text, activeforeground="crimson")
 gobackward30 = tk.Button(reverse_row, text="30 seconds", command=lambda: reverse(30000), font=big_text, activeforeground="crimson")
 gobackward60 = tk.Button(reverse_row, text="60 seconds", command=lambda: reverse(60000), font=big_text, activeforeground="crimson")
+
+options_row1 = tk.Frame(root)
+options_row2 = tk.Frame(root)
+loop = tk.Button(options_row1, text="Loop", font=big_text, command=lambda: playback_mode("loop"), activeforeground="crimson")
+normal = tk.Button(options_row1, text="Normal", font=big_text, command=lambda: playback_mode("normal"), activeforeground="crimson", foreground="crimson")
+shuffle = tk.Button(options_row1, text="Shuffle", font=big_text, command=lambda: playback_mode("shuffle"), activeforeground="crimson")
+previous_song = tk.Button(options_row2, text="Previous song", command=lambda: song_control("previous"), font=big_text, activeforeground="crimson")
+next_song = tk.Button(options_row2, text="     Next song      ", command=lambda: song_control("next"), font=big_text, activeforeground="crimson")
+
 stop = tk.Button(root, text="Exit", command=root.destroy, font=big_text, activeforeground="crimson")
 
 progress = ttk.Progressbar(orient="horizontal", length=100, mode="determinate")
 song_progress = tk.Label(root, text="", font=big_text)
-song_title = tk.Label(root, text=song.split("/")[-1], font=big_text)
+song_title = tk.Message(root, text=song.split("/")[-1], font=big_text)
 song_title.pack(fill="x")
 progress.pack(fill="x", pady=(20, 0))
 song_progress.pack(fill="x", pady=(0, 20))
@@ -148,19 +281,20 @@ gobackward10.pack(side="left", fill="x", expand=True)
 gobackward30.pack(side="left", fill="x", expand=True)
 gobackward60.pack(side="left", fill="x", expand=True)
 
-stop.pack(fill="x", pady=(40, 0))
+options_row1.pack(fill="x")
+options_label = tk.Label(options_row1, text="Playback controls", font=big_text)
+options_label.pack(side="top", fill="x", expand=True, pady=20)
+loop.pack(side="left", fill="x", expand=True)
+normal.pack(side="left", fill="x", expand=True)
+shuffle.pack(side="left", fill="x", expand=True)
+options_row2.pack(fill="x")
+previous_song.pack(side="left", fill="x", expand=True)
+next_song.pack(side="left", fill="x", expand=True)
 
-max_minutes = str(math.floor(player.get_length()/1000/60))
-max_seconds = str(round(player.get_length()/1000%60))
-if int(max_seconds) == 60:
-	seconds = "00"
-	max_minutes = int(max_minutes) + 1
-	max_minutes = str(max_minutes)
-if int(max_minutes) < 10:
-	max_minutes = "0" + str(max_minutes)
-if int(max_seconds) < 10 and max_seconds != "00":
-	max_seconds = "0" + str(max_seconds)
-song_length = f"{max_minutes}:{max_seconds}"
+stop.pack(fill="x", pady=(20, 0))
+
+root.update_idletasks()
+song_title.config(width=root.winfo_width())
 
 root.bind("<KeyPress>", key_press)
 
